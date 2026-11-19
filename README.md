@@ -4,20 +4,21 @@ A single on-demand router skill that fetches official Agent Toolkit for AWS skil
 
 ## Why
 
-The Agent Toolkit for AWS installs official skills one by one into `~/.claude/skills/`. Every installed skill's `name` and `description` is sent in context on every request, even when you are not doing AWS work. This was reported in [aws/agent-toolkit-for-aws#54](https://github.com/aws/agent-toolkit-for-aws/issues/54) and acknowledged by AWS maintainers but never fixed; the issue was closed as not planned.
+Official Agent Toolkit for AWS skills are installed either as plugins (for example, `aws-core`, which includes 27 skills) or with `aws agent-toolkit add-skill`. Every installed skill's `name` and `description` is in context on every request, even when you are not doing AWS work. This was reported in [aws/agent-toolkit-for-aws#54](https://github.com/aws/agent-toolkit-for-aws/issues/54) — acknowledged by an AWS contributor but never fixed; the issue was automatically closed as not planned after going stale.
 
-Installing this single `aws` router skill avoids keeping individual official skills installed locally. At run time, the router fetches the matching official skill directly from the public AWS catalog, so it is always the latest version and nothing is stored locally.
+Installing this single `aws` router skill avoids keeping official skills installed locally. At run time, the router fetches the matching official skill directly from the public AWS catalog, so it is always the latest version and no official skills are installed or cached locally.
 
-Measured on 2026-11-18 on a Windows machine with `claude -p "Reply with exactly: OK" --output-format json` (3 runs per environment, all 3 identical):
+Measured on 2026-11-20 on macOS with Claude Code 2.1.328 using `claude -p "Reply with exactly: OK" --output-format json --max-turns 1 --setting-sources project,local` (user-level settings, skills, and plugins excluded; 3 runs per environment, medians reported — `B` and `C` were identical across runs, and `A` varied by ≤40 tokens). The comparison loads the 27 skill folders from the official `aws-core` Claude Code plugin v1.3.0 ([aws/agent-toolkit-for-aws](https://github.com/aws/agent-toolkit-for-aws), `plugins/aws-core` — marked "Start here" in AWS's README and installed via `/plugin install aws-core@claude-plugins-official`) as project skills, versus this router (1 skill). The AWS MCP Server that `aws-core` also configures was not included, so the real `aws-core` cost is at least this much:
 
-| Environment | Prompt tokens per request |
-|---|---|
-| Router only | 30,989 |
-| 24 official skills | 35,896 |
-| Router's own cost | 229 |
-| Net saving | 4,678 tokens per request |
+| Setup | Skills in the listing | Extra prompt tokens per request |
+|---|---|---|
+| Official `aws-core` plugin v1.3.0 (skills only) | 27 | 7,812 |
+| aws-skill-router | 1 | 217 |
+| **Saving** | | **7,595 per request (~97%)** |
 
-The 24 official skills' names and descriptions totaled 18,207 characters. Beyond raw token cost, installing 24 official skills exhausted the skill listing's length budget: 8 of 60 installed skills were shown with name only (no description), and 5 of those 8 were unrelated to AWS. With only the router installed, all 38 skills kept their descriptions.
+"Extra prompt tokens" is each environment's total minus an empty baseline (`A`). Absolute prompt token totals depend on OS, Claude Code version, model, and your own configuration, so this table reports the difference against an empty baseline, which stays stable. The 27 `aws-core` skills' names and descriptions total 20,980 characters.
+
+Beyond raw token cost, Claude Code limits the total length of the skill listing: when many skills are installed, some are shown with name only (no description) — including unrelated, non-AWS skills — which makes them harder for the model to pick. An earlier measurement with 24 official skills plus the author's other skills showed 8 of the 60 skills in the listing reduced to name only, 5 of them unrelated to AWS; with only the router, all 38 skills kept their descriptions.
 
 ## How it works
 
@@ -89,18 +90,23 @@ Do not run `aws agent-toolkit update-skill` or `aws agent-toolkit add-skill` alo
 
 ## Migrating from the official skills
 
-To remove previously installed official Agent Toolkit skills for Claude Code:
+- **Official Claude Code plugins (`aws-core`, etc.):** If you installed `aws-core` (via `/plugin install aws-core@claude-plugins-official` from the default official Anthropic marketplace), uninstall it from `/plugin` → **Installed**, or run:
+  ```bash
+  claude plugin uninstall aws-core@claude-plugins-official
+  ```
+  Other official bundles exist (for example, `aws-agents` and `aws-data-analytics`); remove those the same way if you only want the router.
 
-1. List what is currently installed:
-   ```bash
-   aws agent-toolkit list-installed-skills --agent claude-code
-   ```
-2. Remove each installed skill:
-   ```bash
-   aws agent-toolkit remove-skill --skill-name <name> --agent claude-code
-   ```
+- **Skills installed via `aws configure agent-toolkit` or `add-skill`:** The interactive `aws configure agent-toolkit` wizard installs default skills and configures the AWS MCP Server. Remove skills installed by the wizard or `aws agent-toolkit add-skill` with:
+  1. List what is currently installed:
+     ```bash
+     aws agent-toolkit list-installed-skills --agent claude-code
+     ```
+  2. Remove each installed skill:
+     ```bash
+     aws agent-toolkit remove-skill --skill-name <name> --agent claude-code
+     ```
 
-Alternatively, you can use the official `aws-core` plugin instead of this repository. Do not install `aws-core` and `aws-skill-router` together—they overlap and both consume context.
+You can keep `aws-core` instead of this router if you prefer the bundled MCP setup; do not install both — they overlap and `aws-core`'s skills are what this router replaces.
 
 ## Requirements and limits
 
@@ -109,18 +115,27 @@ Alternatively, you can use the official `aws-core` plugin instead of this reposi
 - **Latency and network:** Each skill load adds 1–3 CLI calls (or MCP calls) and requires network access to the AWS catalog.
 - **Non-interactive mode (`claude -p`):** You must additionally allow the router skill tool, for example `--allowedTools "Skill(aws)"` (or `--allowedTools "Skill(aws-skill-router:aws)"` if installed as a Claude Code plugin).
 - **Agent compatibility (`allowed-tools`):** The `allowed-tools` field in `skills/aws/SKILL.md` uses the Claude Code list form; other agents ignore it and the skill works without it (it only pre-approves the read-only catalog commands).
+- **Tested on:** macOS (router, plugin install, measurement script) and Linux (CI). The PowerShell script and Windows usage have not been tested by the maintainer yet.
 
 ## Security
 
 - **Official source:** Skill content is fetched directly from the official Agent Toolkit for AWS catalog.
 - **No credentials for catalog reads:** All catalog queries pass `--no-sign-request` and do not require AWS credentials or an active session.
-- **No local skill storage:** The router never stores official skill content locally.
-- **Fetched scripts:** Any script under a skill's `scripts/` directory is saved to a temporary directory and read in full before execution.
-- **Account changes:** Commands that create, modify, or delete resources in your AWS account require valid credentials and user confirmation before running.
+- **No installed copies:** The router does not install or cache official skills; fetched content exists only in the agent's session.
+- **Fetched scripts:** The router instructs the agent to save any script from a skill's `scripts/` directory to a temporary directory and read it in full before running it.
+- **Account changes:** The router instructs the agent to confirm with you before any command that creates, changes, or deletes AWS resources; such commands need your own valid credentials.
 
 ## Reproduce the numbers
 
-Use the included measurement scripts to compare prompt tokens across three isolated temporary environments (`A-baseline`, `B-official`, and `C-router`). The scripts never install into or modify your skills directory (official skills are installed into a temporary `HOME`). By default, they ignore your user-level settings, skills, and plugins (`--setting-sources project,local`) so the three environments differ only in their project skills; pass `--include-user-config` (`-IncludeUserConfig` on PowerShell) to include your real setup (for example, to observe skill-listing truncation). Absolute token counts depend on the Claude Code version and will not match the table above exactly—compare the differences.
+Use the included measurement scripts to compare prompt tokens across three isolated temporary environments (`A-baseline`, `B-official`, and `C-router`). The scripts never install into or modify your skills directory (official skills are installed into a temporary `HOME`). By default, they ignore your user-level settings, skills, and plugins (`--setting-sources project,local`) so the three environments differ only in their project skills; pass `--include-user-config` (`-IncludeUserConfig` on PowerShell) to include your real setup (for example, to observe skill-listing truncation). Absolute totals vary by machine; the differences (`B − A`, `C − A`) are what to compare.
+
+To reproduce the table above, clone `https://github.com/aws/agent-toolkit-for-aws` and point `--skills-dir` (PowerShell: `-SkillsDir`) at its `aws-core` skills directory:
+
+```bash
+./scripts/measure-tokens.sh --skills-dir <clone>/plugins/aws-core/skills
+```
+
+Without `--skills-dir`, the default installs the 39 skills named in the router's table via `aws agent-toolkit add-skill` instead.
 
 > **API usage note:** Each script runs `claude -p` 9 times by default (3 environments × 3 runs) and costs a small amount of API usage. Both scripts ask for confirmation (`y/N`) before running unless `--yes` / `-Yes` is passed.
 
