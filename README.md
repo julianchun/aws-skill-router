@@ -68,6 +68,25 @@ npx skills add julianchun/aws-skill-router
 
 Copy `skills/aws` from this repository to `~/.claude/skills/aws`.
 
+## Updating
+
+Official AWS skills never need updating—the router fetches the latest published version from AWS at run time.
+
+To update the router itself when a new version is released:
+
+- **Claude Code plugin:** Background auto-update is off by default for third-party marketplaces. To enable it, open `/plugin` → **Marketplaces** → `aws-skill-router` and turn on auto-update. You can also update manually from the CLI:
+  ```bash
+  claude plugin marketplace update aws-skill-router
+  claude plugin update aws-skill-router@aws-skill-router
+  ```
+  (Or select **Update marketplace** in `/plugin` → **Marketplaces** to do both.) The new version loads in your next session or after `/reload-plugins`.
+- **`skills` CLI:** Rerun `npx skills add julianchun/aws-skill-router`.
+- **Manual copy:** Copy `skills/aws` from this repository to `~/.claude/skills/aws` again.
+
+Do not run `aws agent-toolkit update-skill` or `aws agent-toolkit add-skill` alongside the router—that reinstalls official skills locally and brings back their context cost.
+
+**Maintenance:** A weekly GitHub Actions workflow compares the router table with the official catalog and opens a PR when listed names disappear or new skills appear. Merging a PR that bumps the version publishes a GitHub Release automatically. On public repositories, GitHub automatically disables scheduled workflows after 60 days without repository activity, so re-enable the workflow in the **Actions** tab if needed.
+
 ## Migrating from the official skills
 
 To remove previously installed official Agent Toolkit skills for Claude Code:

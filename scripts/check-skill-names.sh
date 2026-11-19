@@ -7,10 +7,14 @@ DEFAULT_SKILL_FILE="$REPO_ROOT/skills/aws/SKILL.md"
 
 usage() {
   cat <<'EOF'
-Usage: scripts/check-skill-names.sh [path/to/SKILL.md]
+Usage: scripts/check-skill-names.sh [--print-names] [path/to/SKILL.md]
 
 Verifies that every skill name listed in the "## Frequently used skill names"
 table exists in the official Agent Toolkit for AWS catalog.
+
+Options:
+  --print-names  Print unique skill names from the table (sorted, one per line)
+                 and exit 0 without contacting AWS.
 
 Environment variables:
   CATALOG_FILE  Optional path to a whitespace/newline-separated list of catalog
@@ -18,20 +22,47 @@ Environment variables:
 EOF
 }
 
-if [ "$#" -gt 1 ]; then
-  usage >&2
-  exit 1
-fi
+PRINT_NAMES=false
+SKILL_FILE=""
 
-if [ "$#" -eq 1 ]; then
+while [ "$#" -gt 0 ]; do
   case "$1" in
     -h|--help)
       usage
       exit 0
       ;;
+    --print-names)
+      PRINT_NAMES=true
+      shift
+      ;;
+    --)
+      shift
+      if [ "$#" -gt 0 ]; then
+        if [ -n "$SKILL_FILE" ] || [ "$#" -gt 1 ]; then
+          usage >&2
+          exit 1
+        fi
+        SKILL_FILE="$1"
+        shift
+      fi
+      ;;
+    -*)
+      echo "Error: unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      if [ -n "$SKILL_FILE" ]; then
+        usage >&2
+        exit 1
+      fi
+      SKILL_FILE="$1"
+      shift
+      ;;
   esac
-  SKILL_FILE="$1"
-else
+done
+
+if [ -z "$SKILL_FILE" ]; then
   SKILL_FILE="$DEFAULT_SKILL_FILE"
 fi
 
@@ -115,6 +146,11 @@ skill_count="$(wc -l < "$SKILLS_SORTED" | tr -d '[:space:]')"
 if [ "$skill_count" -eq 0 ]; then
   echo "Error: zero skill names found in \"## Frequently used skill names\" table in $SKILL_FILE" >&2
   exit 1
+fi
+
+if [ "$PRINT_NAMES" = true ]; then
+  cat "$SKILLS_SORTED"
+  exit 0
 fi
 
 check_aws_cli_version() {

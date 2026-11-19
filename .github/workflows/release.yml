@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.claude-plugin/plugin.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag and GitHub Release on version bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          before_sha="${BEFORE_SHA:-}"
+          if [ -z "$before_sha" ] || printf '%s\n' "$before_sha" | grep -Eq '^0+$'; then
+            echo "Initial push (BEFORE_SHA is empty or all zeros); skipping release."
+            exit 0
+          fi
+
+          if git cat-file -e "${before_sha}^{commit}" 2>/dev/null; then
+            base_ref="$before_sha"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            echo "BEFORE_SHA (${before_sha}) not found in repository; falling back to HEAD~1."
+            base_ref="HEAD~1"
+          else
+            echo "BEFORE_SHA (${before_sha}) not found and no HEAD~1; skipping release."
+            exit 0
+          fi
+
+          if [ ! -f .claude-plugin/plugin.json ]; then
+            echo ".claude-plugin/plugin.json not found at HEAD; skipping release."
+            exit 0
+          fi
+
+          if ! prev_json="$(git show "${base_ref}:.claude-plugin/plugin.json" 2>/dev/null)"; then
+            echo ".claude-plugin/plugin.json absent at ${base_ref}; skipping release."
+            exit 0
+          fi
+
+          prev_version="$(printf '%s\n' "$prev_json" | jq -r '.version // empty')"
+          curr_version="$(jq -r '.version // empty' .claude-plugin/plugin.json)"
+
+          if [ "$curr_version" = "$prev_version" ]; then
+            echo "Version unchanged ($curr_version); skipping release."
+            exit 0
+          fi
+
+          if ! printf '%s\n' "$curr_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: invalid version '$curr_version' in .claude-plugin/plugin.json (expected X.Y.Z)." >&2
+            exit 1
+          fi
+
+          mkt_version="$(jq -r '.plugins[] | select(.name == "aws-skill-router") | .version // empty' .claude-plugin/marketplace.json)"
+          if [ -n "$mkt_version" ] && [ "$mkt_version" != "$curr_version" ]; then
+            echo "Error: conflicting version in .claude-plugin/marketplace.json ('$mkt_version' != '$curr_version')." >&2
+            exit 1
+          fi
+
+          tag="v${curr_version}"
+          tag_exists=false
+          if [ -n "$(git ls-remote --tags origin "refs/tags/${tag}")" ]; then
+            tag_exists=true
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Tag ${tag} and GitHub Release already exist; skipping release."
+              exit 0
+            fi
+            echo "Tag ${tag} exists on origin without a GitHub Release; creating release for existing tag."
+          fi
+
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow --tags
+          else
+            git fetch --tags
+          fi
+
+          if [ "$tag_exists" = true ]; then
+            target_ref="${tag}^{commit}"
+          else
+            target_ref="HEAD"
+          fi
+
+          prev_tag="$(git describe --tags --abbrev=0 --match 'v*' --exclude "$tag" "$target_ref" 2>/dev/null || true)"
+          if [ -n "$prev_tag" ]; then
+            commits="$(git log --format='- %s' "${prev_tag}..${target_ref}")"
+          else
+            commits="$(git log --format='- %s' "${target_ref}")"
+          fi
+
+          footer="Official AWS skills are fetched at run time; this release only changes the router."
+          if [ -n "$commits" ]; then
+            notes="${commits}"$'\n\n'"${footer}"
+          else
+            notes="${footer}"
+          fi
+
+          if [ "$tag_exists" = false ]; then
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                tag -a "$tag" -m "Release ${tag}"
+            git push origin "refs/tags/${tag}"
+          fi
+
+          gh release create "$tag" --verify-tag --title "$tag" --notes "$notes"

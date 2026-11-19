@@ -1,0 +1,99 @@
+# Note: Pull requests created with GITHUB_TOKEN do not trigger other GitHub Actions
+# workflows (such as validate.yml). Therefore, this workflow runs the skill-name
+# validation (scripts/check-skill-names.sh, invoked by scripts/sync-catalog.sh when
+# SKILL.md changes) before opening or updating the PR.
+#
+# Branch protection: Because validate.yml does not run on PRs created with
+# GITHUB_TOKEN, if "Validate" is configured as a required status check, the PR
+# cannot be merged until checks are triggered another way (for example, close and
+# reopen the PR or push an empty commit to the branch as a maintainer).
+#
+# Stale PRs: This workflow does not close a stale sync PR when a later run finds no
+# changes — close it manually.
+#
+# Partial-catalog guard: scripts/sync-catalog.sh aborts without modifying files if
+# the catalog drops below 50% of the snapshot count or would remove more than 5
+# skill names from the router table in one run. To override for an intentional
+# large change, run with SYNC_ALLOW_LARGE_CHANGE=1.
+#
+# Repository requirement: Settings -> Actions -> General -> Workflow permissions ->
+# enable "Allow GitHub Actions to create and approve pull requests".
+
+name: Catalog Sync
+
+on:
+  schedule:
+    - cron: '41 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: catalog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure AWS CLI >= 2.35.0
+        run: |
+          check_aws_version() {
+            if ! command -v aws >/dev/null 2>&1; then
+              return 1
+            fi
+            local ver_out ver major minor
+            ver_out="$(aws --version 2>&1 || true)"
+            ver="$(printf '%s\n' "$ver_out" | awk '{for(i=1;i<=NF;i++) if($i ~ /^aws-cli\//){sub(/^aws-cli\//,"",$i); print $i; exit}}')"
+            if [ -z "$ver" ]; then
+              return 1
+            fi
+            IFS='.' read -r major minor _ <<< "$ver"
+            case "$major" in ''|*[!0-9]*) return 1 ;; esac
+            case "$minor" in ''|*[!0-9]*) return 1 ;; esac
+            major=$((10#$major))
+            minor=$((10#$minor))
+            [ "$major" -gt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -ge 35 ]; }
+          }
+
+          if command -v aws >/dev/null 2>&1; then
+            aws --version
+          else
+            echo "aws CLI not installed"
+          fi
+
+          if ! check_aws_version; then
+            echo "Installing/upgrading AWS CLI v2..."
+            curl -sSfL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip
+            unzip -q /tmp/awscliv2.zip -d /tmp
+            sudo /tmp/aws/install --update
+            rm -rf /tmp/aws /tmp/awscliv2.zip
+          fi
+
+          aws --version
+          if ! check_aws_version; then
+            echo "Error: AWS CLI version is still below 2.35.0" >&2
+            exit 1
+          fi
+
+      - name: Sync with official AWS skill catalog
+        id: sync
+        env:
+          PR_BODY_FILE: ${{ runner.temp }}/sync-pr-body.md
+        run: scripts/sync-catalog.sh
+
+      - name: Create or update pull request
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/catalog-sync
+          commit-message: 'chore: sync AWS skill catalog'
+          title: "${{ steps.sync.outputs.skill_changed == 'true' && format('chore: sync with official AWS skill catalog (v{0})', steps.sync.outputs.version) || 'chore: sync with official AWS skill catalog' }}"
+          body-path: ${{ runner.temp }}/sync-pr-body.md
+          delete-branch: true
+          labels: catalog-sync

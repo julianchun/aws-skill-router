@@ -8,8 +8,7 @@
     {
       "name": "aws-skill-router",
       "source": "./",
-      "description": "Single on-demand router skill that fetches official Agent Toolkit for AWS skills at run time instead of keeping them installed locally.",
-      "version": "0.1.0"
+      "description": "Single on-demand router skill that fetches official Agent Toolkit for AWS skills at run time instead of keeping them installed locally."
     }
   ]
 }

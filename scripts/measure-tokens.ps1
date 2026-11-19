@@ -36,7 +36,11 @@ if ($IncludeUserConfig) {
 }
 
 if (-not $Yes) {
-    $answer = Read-Host "Continue? [y/N]"
+    try {
+        $answer = Read-Host "Continue? [y/N]"
+    } catch {
+        $answer = ''
+    }
     if ($answer -notin @('y', 'Y', 'yes', 'YES')) {
         Write-Host "Aborted."
         exit 0
