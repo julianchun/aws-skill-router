@@ -1,7 +1,7 @@
 {
   "name": "aws-skill-router",
   "version": "0.1.0",
-  "description": "Single on-demand router skill that fetches official Agent Toolkit for AWS skills at run time instead of keeping them installed locally.",
+  "description": "Single entry point to the official Agent Toolkit for AWS skills: loads the matching skill on demand instead of installing them all.",
   "author": {
     "name": "julianchun"
   },
@@ -12,7 +12,6 @@
     "aws",
     "agent-toolkit",
     "skills",
-    "claude-code",
     "router"
   ]
 }

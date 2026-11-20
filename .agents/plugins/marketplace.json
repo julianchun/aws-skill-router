@@ -1,0 +1,20 @@
+{
+  "name": "aws-skill-router",
+  "interface": {
+    "displayName": "AWS Skill Router"
+  },
+  "plugins": [
+    {
+      "name": "aws-skill-router",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Cloud"
+    }
+  ]
+}

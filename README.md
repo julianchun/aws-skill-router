@@ -9,10 +9,10 @@ Every installed official AWS skill's `name` and `description` is in context on e
 | Setup | Skills in the listing | Extra prompt tokens per request |
 |---|---|---|
 | Official `aws-core` plugin v1.3.0 (skills only) | 27 | 7,812 |
-| aws-skill-router | 1 | 217 |
-| **Saving** | | **7,595 per request (~97%)** |
+| aws-skill-router | 1 | 89 |
+| **Saving** | | **7,723 per request (~99%)** |
 
-Extra prompt tokens over an empty session; measured 2026-11-20 on macOS with Claude Code 2.1.328, 3 runs each, user config excluded; the AWS MCP Server that aws-core also configures was not included. Reproduce with `scripts/measure-tokens.sh` (see `--help`).
+Extra prompt tokens over an empty session; measured 2026-11-21 on macOS with Claude Code 2.1.329, 3 runs each, user config excluded; the AWS MCP Server that aws-core also configures was not included. Reproduce with `scripts/measure-tokens.sh` (see `--help`).
 
 With many skills installed, Claude Code shortens the skill listing and some skills (including non-AWS ones) lose their descriptions.
 
@@ -20,7 +20,9 @@ Reported in [aws/agent-toolkit-for-aws#54](https://github.com/aws/agent-toolkit-
 
 ## Install
 
-Inside Claude Code:
+The router is a standard [Agent Skill](https://agentskills.io/specification), packaged for the same agents as the official toolkit.
+
+**Claude Code**
 
 ```text
 /plugin marketplace add julianchun/aws-skill-router
@@ -29,7 +31,18 @@ Inside Claude Code:
 
 The skill then appears as `aws-skill-router:aws`.
 
-**Other options:** `npx skills add julianchun/aws-skill-router`, or copy `skills/aws` to `~/.claude/skills/aws`.
+**Codex**
+
+```text
+codex plugin marketplace add julianchun/aws-skill-router
+codex plugin add aws-skill-router@aws-skill-router
+```
+
+**Cursor:** Settings → Plugins → Team Marketplaces → Add Marketplace → Import from Repo, enter `julianchun/aws-skill-router`, then install **aws-skill-router** from the Plugins panel.
+
+**Devin:** `devin plugins install julianchun/aws-skill-router`
+
+**Kiro, fx and other agents:** `npx skills add julianchun/aws-skill-router` (add `-a <agent>` to pick one).
 
 **Check it works:** ask an AWS question (e.g. "How do I add a rate-based rule to AWS WAF for CloudFront?"); Claude should load the `aws` skill and run `aws agent-toolkit get-skill-file --skill-name waf ...`.
 
@@ -54,7 +67,9 @@ The skill then appears as `aws-skill-router:aws`.
 
 - **Security:** Content comes from the official AWS catalog; the skill instructs the agent to read fetched scripts before running them and to confirm before changing AWS resources.
 
-- **Tested on:** macOS (CI checks run on Linux); Windows is not yet tested.
+- **Permissions:** `allowed-tools` pre-approves the read-only `aws agent-toolkit` catalog commands in Claude Code. Other agents may ask before running them.
+
+- **Tested on:** Claude Code on macOS (CI checks run on Linux); Codex plugin install on macOS. Cursor, Devin, Kiro and Windows are not yet tested.
 
 - **Maintenance:** A weekly workflow checks the router table against the official catalog and opens a PR when it changes.
 

@@ -51,6 +51,16 @@ jobs:
                   print(f"Error: {path} frontmatter must parse to a YAML mapping", file=sys.stderr)
                   sys.exit(1)
 
+              extra = set(data) - {"name", "description", "license", "allowed-tools", "metadata", "compatibility"}
+              if extra:
+                  print(f"Error: {path} has non-spec frontmatter field(s): {', '.join(sorted(extra))}", file=sys.stderr)
+                  sys.exit(1)
+
+              tools = data.get("allowed-tools")
+              if tools is not None and not isinstance(tools, str):
+                  print(f"Error: {path} 'allowed-tools' must be a string, not a list", file=sys.stderr)
+                  sys.exit(1)
+
               name = data.get("name")
               description = data.get("description")
 
@@ -81,21 +91,48 @@ jobs:
 
       - name: Validate plugin and marketplace JSON
         run: |
-          jq empty .claude-plugin/plugin.json .claude-plugin/marketplace.json
+          set -euo pipefail
+          plugins=".claude-plugin/plugin.json .codex-plugin/plugin.json .cursor-plugin/plugin.json .devin-plugin/plugin.json"
+          marketplaces=".claude-plugin/marketplace.json .cursor-plugin/marketplace.json .agents/plugins/marketplace.json"
+          jq empty $plugins $marketplaces
 
-          plugin_name="$(jq -r '.name' .claude-plugin/plugin.json)"
-          if [ "$plugin_name" != "aws-skill-router" ]; then
-            echo "Error: plugin.json name is '$plugin_name', expected 'aws-skill-router'" >&2
+          expected_version="$(jq -r '.version' .claude-plugin/plugin.json)"
+          for f in $plugins; do
+            name="$(jq -r '.name' "$f")"
+            version="$(jq -r '.version' "$f")"
+            if [ "$name" != "aws-skill-router" ]; then
+              echo "Error: $f name is '$name', expected 'aws-skill-router'" >&2
+              exit 1
+            fi
+            if [ "$version" != "$expected_version" ]; then
+              echo "Error: $f version is '$version', expected '$expected_version' (from .claude-plugin/plugin.json)" >&2
+              exit 1
+            fi
+          done
+
+          for f in .codex-plugin/plugin.json .cursor-plugin/plugin.json .devin-plugin/plugin.json; do
+            skills="$(jq -r '.skills' "$f")"
+            if [ "$skills" != "./skills/" ]; then
+              echo "Error: $f skills is '$skills', expected './skills/'" >&2
+              exit 1
+            fi
+          done
+
+          for f in .claude-plugin/marketplace.json .cursor-plugin/marketplace.json; do
+            source="$(jq -r '.plugins[] | select(.name == "aws-skill-router") | .source' "$f")"
+            if [ "$source" != "./" ]; then
+              echo "Error: $f plugin source is '$source', expected './'" >&2
+              exit 1
+            fi
+          done
+
+          codex_path="$(jq -r '.plugins[] | select(.name == "aws-skill-router") | .source.path' .agents/plugins/marketplace.json)"
+          if [ "$codex_path" != "./" ]; then
+            echo "Error: .agents/plugins/marketplace.json plugin path is '$codex_path', expected './'" >&2
             exit 1
           fi
 
-          plugin_source="$(jq -r '.plugins[] | select(.name == "aws-skill-router") | .source' .claude-plugin/marketplace.json)"
-          if [ "$plugin_source" != "./" ]; then
-            echo "Error: marketplace.json plugin source is '$plugin_source', expected './'" >&2
-            exit 1
-          fi
-
-          echo "OK: .claude-plugin JSON files valid"
+          echo "OK: plugin and marketplace JSON files valid (version $expected_version)"
 
       - name: Ensure AWS CLI >= 2.35.0
         run: |
