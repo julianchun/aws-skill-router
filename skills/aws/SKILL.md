@@ -1,21 +1,18 @@
 ---
 name: aws
 description: >-
-  Single entry point for all AWS work. Loads the matching official AWS skill
-  (126+ in the Agent Toolkit for AWS catalog) on demand from AWS, always the
-  latest version. Use for any AWS service or task: IAM, S3, EC2, Lambda,
-  ECS/EKS, RDS/Aurora/DynamoDB, VPC/CloudFront/Route 53/WAF, CDK/CloudFormation,
-  CloudWatch, Bedrock/SageMaker, Cognito, billing and cost, security services,
-  AWS CLI sign-in, and code using boto3, @aws-sdk/* or aws-sdk-swift.
-allowed-tools:
-  - Bash(aws agent-toolkit search-skills *)
-  - Bash(aws agent-toolkit get-skill-metadata *)
-  - Bash(aws agent-toolkit get-skill-file *)
-  - Bash(aws agent-toolkit list-available-skills *)
-  - PowerShell(aws agent-toolkit search-skills *)
-  - PowerShell(aws agent-toolkit get-skill-metadata *)
-  - PowerShell(aws agent-toolkit get-skill-file *)
-  - PowerShell(aws agent-toolkit list-available-skills *)
+  Single entry point for all AWS work: loads the matching official AWS skill
+  on demand. Use for any AWS service, infrastructure as code, CLI sign-in, or
+  boto3/@aws-sdk/* code. Skip when AWS is only incidental to the task.
+allowed-tools: >-
+  Bash(aws agent-toolkit search-skills *),
+  Bash(aws agent-toolkit get-skill-metadata *),
+  Bash(aws agent-toolkit get-skill-file *),
+  Bash(aws agent-toolkit list-available-skills *),
+  PowerShell(aws agent-toolkit search-skills *),
+  PowerShell(aws agent-toolkit get-skill-metadata *),
+  PowerShell(aws agent-toolkit get-skill-file *),
+  PowerShell(aws agent-toolkit list-available-skills *)
 ---
 
 # AWS skill router

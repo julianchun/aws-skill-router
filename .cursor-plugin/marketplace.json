@@ -1,0 +1,16 @@
+{
+  "name": "aws-skill-router",
+  "owner": {
+    "name": "julianchun"
+  },
+  "metadata": {
+    "description": "Marketplace for aws-skill-router, the single entry point to the official Agent Toolkit for AWS skills."
+  },
+  "plugins": [
+    {
+      "name": "aws-skill-router",
+      "source": "./",
+      "description": "Single entry point to the official Agent Toolkit for AWS skills: loads the matching skill on demand instead of installing them all."
+    }
+  ]
+}

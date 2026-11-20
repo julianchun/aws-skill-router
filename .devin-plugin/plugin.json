@@ -1,0 +1,13 @@
+{
+  "name": "aws-skill-router",
+  "version": "0.1.0",
+  "description": "Single entry point to the official Agent Toolkit for AWS skills: loads the matching skill on demand instead of installing them all.",
+  "author": {
+    "name": "julianchun"
+  },
+  "homepage": "https://github.com/julianchun/aws-skill-router",
+  "repository": "https://github.com/julianchun/aws-skill-router",
+  "license": "MIT",
+  "keywords": ["aws", "agent-toolkit", "skills", "router"],
+  "skills": "./skills/"
+}
