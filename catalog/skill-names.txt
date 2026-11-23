@@ -9,6 +9,7 @@ amazon-elasticache
 amazon-eventbridge-event-bus
 amazon-keyspaces
 amazon-neptune
+amazon-opensearch-memory
 amazon-opensearch-service
 amazon-ses
 amazon-workspaces-agent-access
@@ -54,6 +55,7 @@ aws-step-functions
 aws-storage
 aws-transform
 aws-well-architected-review
+caching-for-llm-inference
 cloudfront
 configuring-vpc-endpoints-for-private-aws-service-access
 connecting-lambda-to-api-gateway
@@ -75,6 +77,7 @@ dms-schema-conversion
 enabling-lambda-vpc-internet-access
 exploring-data-catalog
 exporting-rds-to-s3
+finding-aws-customer-stories
 finding-data-lake-assets
 ingesting-into-data-lake
 launch-with-aws
@@ -87,6 +90,7 @@ managing-glue-jobs
 migrate-to-msk
 migrating-hive-tables-to-s3-tables
 migrating-to-amazon-redshift
+ocr-document-processing-skill
 processing-s3-uploads-with-step-functions
 querying-aws-athena
 querying-aws-cloudwatch
