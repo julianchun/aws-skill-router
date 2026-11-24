@@ -113,11 +113,15 @@ changes or deletes AWS resources.
 | Security Hub, GuardDuty, Inspector | `aws-security` |
 | Cognito, app login | `aws-auth` |
 | Bedrock, AgentCore | `amazon-bedrock` |
+| OpenSearch Memory (agent memory spaces) | `amazon-opensearch-memory` |
 | SageMaker | `aws-ai-ml` |
+| Self-hosted LLM KV cache (Valkey, LMCache, vLLM) | `caching-for-llm-inference` |
+| OCR, Textract, document processing | `ocr-document-processing-skill` |
 | SQS, SNS, Kinesis, MSK | `aws-messaging-and-streaming` |
 | Cost, budgets, pricing | `aws-billing-and-cost-management` |
 | SDK code | `aws-sdk-python-usage`, `aws-sdk-js-v3-usage`, `aws-sdk-swift-usage` |
 | Deploy an app end to end | `launch-with-aws` |
 | Root-cause an incident | `aws-investigation`, `troubleshooting-application-failures` |
+| AWS customer stories, case studies | `finding-aws-customer-stories` |
 
 This table is a shortcut, not the full catalog. When nothing here fits, search.
